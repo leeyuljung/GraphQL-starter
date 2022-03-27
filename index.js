@@ -4,17 +4,20 @@ const users = [
     {
         id: 1,
         name: 'Yuljung',
-        age: 25
+        age: 25,
+        friendIds: [2, 3]
     },
     {
         id: 2,
         name: 'Panda',
-        age: 16
+        age: 16,
+        friendIds: [1]
     },
     {
         id: 3,
         name: 'Uber',
-        age: 33
+        age: 33,
+        friendIds: [1]
     }
 ]
 
@@ -24,6 +27,8 @@ const typeDefs = gql`
         hello: String
         "取得當前使用者"
         me: User
+        "取得所有使用者"
+        users: [User]
     }
 
     """
@@ -36,6 +41,8 @@ const typeDefs = gql`
         name: String
         "年齡"
         age: Int
+        "好友"
+        friends: [User]
     }
 `;
 
@@ -43,7 +50,14 @@ const typeDefs = gql`
 const resolvers = {
     Query: {
         hello: () => 'world',
-        me: () => users[0]
+        me: () => users[0],
+        users: () => users
+    },
+    User: {
+        friends: (parent, args, context) => {
+            const {friendIds} = parent
+            return users.filter(user => friendIds.includes(user.id))
+        }
     }
 }
 
