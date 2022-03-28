@@ -5,18 +5,24 @@ const users = [
         id: 1,
         name: 'Yuljung',
         age: 25,
+        height: 160,
+        weight: 45,
         friendIds: [2, 3]
     },
     {
         id: 2,
         name: 'Panda',
         age: 16,
+        height: 100,
+        weight: 80,
         friendIds: [1]
     },
     {
         id: 3,
         name: 'Uber',
         age: 33,
+        height: 180,
+        weight: 65,
         friendIds: [1]
     }
 ]
@@ -29,6 +35,8 @@ const typeDefs = gql`
         me: User
         "取得所有使用者"
         users: [User]
+        "取得特定使用者"
+        user(name: String!): User
     }
 
     """
@@ -43,7 +51,32 @@ const typeDefs = gql`
         age: Int
         "好友"
         friends: [User]
+        "身高"
+        height(unit: HeightUnit): Float
+        "體重"
+        weight(unit: WeightUnit): Float
     }
+
+    """
+    高度單位
+    """
+    enum HeightUnit {
+        "公分"
+        CM
+        "公尺"
+        M
+    }
+
+    """
+    重量單位
+    """
+    enum WeightUnit {
+        "公斤"
+        KG
+        "克"
+        G
+    }
+    
 `;
 
 // Resolvers
@@ -51,12 +84,26 @@ const resolvers = {
     Query: {
         hello: () => 'world',
         me: () => users[0],
-        users: () => users
+        users: () => users,
+        user: (root, args, context) => {
+            const {name} = args
+            return users.find(user => user.name === name)
+        }
     },
     User: {
         friends: (parent, args, context) => {
             const {friendIds} = parent
             return users.filter(user => friendIds.includes(user.id))
+        },
+        height: (parent, args) => {
+            const {unit} = args
+            if (!unit || unit === 'CM') return parent.height
+            else if (unit === 'M') return parent.height / 100
+        },
+        weight: (parent, args, context) => {
+            const {unit} = args
+            if (!unit || unit === 'KG') return parent.weight
+            else if (unit === 'G') return parent.weight * 1000
         }
     }
 }
