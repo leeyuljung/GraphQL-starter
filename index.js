@@ -52,9 +52,9 @@ const typeDefs = gql`
         "好友"
         friends: [User]
         "身高"
-        height(unit: HeightUnit): Float
+        height(unit: HeightUnit = CM): Float
         "體重"
-        weight(unit: WeightUnit): Float
+        weight(unit: WeightUnit = G): Float
     }
 
     """
@@ -97,12 +97,12 @@ const resolvers = {
         },
         height: (parent, args) => {
             const {unit} = args
-            if (!unit || unit === 'CM') return parent.height
+            if (unit === 'CM') return parent.height
             else if (unit === 'M') return parent.height / 100
         },
         weight: (parent, args, context) => {
             const {unit} = args
-            if (!unit || unit === 'KG') return parent.weight
+            if (unit === 'KG') return parent.weight
             else if (unit === 'G') return parent.weight * 1000
         }
     }
