@@ -62,9 +62,14 @@ const typeDefs = gql`
 
     type Mutation {
         "新增貼文"
-        addPost(title: String!, content: String!): Post
+        addPost(input: AddPostInput!): Post
         "貼文按讚(收回讚)"
         likePost(postId: ID!): Post
+    }
+
+    input AddPostInput {
+        title: String!
+        content: String
     }
 
     """
@@ -111,7 +116,8 @@ const resolvers = {
     },
     Mutation: {
         addPost: (parent, args) => {
-            const { title, content } = args
+            const { input } = args
+            const { title, content } = input
             posts.push({
                 id: posts.length + 1,
                 authorId: 1,
