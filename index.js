@@ -60,6 +60,13 @@ const typeDefs = gql`
         user(name: String!): User
     }
 
+    type Mutation {
+        "新增貼文"
+        addPost(title: String!, content: String!): Post
+        "貼文按讚(收回讚)"
+        likePost(postId: ID!): Post
+    }
+
     """
     使用者資訊
     """
@@ -100,6 +107,34 @@ const resolvers = {
         user: (parent, args) => {
             const {name} = args
             return users.find(user => user.name === name)
+        }
+    },
+    Mutation: {
+        addPost: (parent, args) => {
+            const { title, content } = args
+            posts.push({
+                id: posts.length + 1,
+                authorId: 1,
+                title,
+                content,
+                likeGivers: []
+            })
+            return posts[posts.length - 1]
+        },
+        likePost: (parent, args) => {
+            const { postId } = args
+            const post = posts.find(post => post.id === postId)
+            if(!post) throw new Error(`Post ${postId} Not Exists`)
+
+            if(post.likeGiverIds.includes(1)){
+                // 如果有按過讚的話就收回(去掉該id)
+                const index = post.likeGiverIds.indexOf(1)
+                post.likeGiverIds.splice(index, 1)
+            } else {
+                // 否則加入 likeGiverIds 的陣列中
+                post.likeGiverIds.push(1)
+            }
+            return post
         }
     },
     User: {
