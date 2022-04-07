@@ -70,7 +70,29 @@ const typeDefs = gql`
 
 // Resolvers
 const resolvers = {
-    
+    Query: {
+        hello: () => 'world'
+    },
+    User: {
+        friends: (parent) => {
+            const { friendIds } = parent
+            return users.filter(user => friendIds.includes(user.id))
+        },
+        posts: (parent) => {
+            const { id } = parent
+            return posts.filter(post => id === post.authorId)
+        }
+    },
+    Post: {
+        author: (parent) => {
+            const { authorId } = parent
+            return users.find(user => Number(authorId) === user.id)
+        },
+        likeGivers: (parent) => {
+            const { likeGiverIds } = parent
+            return users.filter(user => likeGiverIds.includes(user.id))
+        }
+    }
 }
 
 // 初始化 Web Server
