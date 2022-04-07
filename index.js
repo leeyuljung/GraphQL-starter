@@ -49,6 +49,15 @@ const posts = [
 
 // Schema
 const typeDefs = gql`
+    type Query {
+        hello: String
+        me: User
+        users: [User]
+        user(name: String!): User
+        posts: [Post]
+        post(id: ID!): Post
+    }
+
     type User {
         id: ID!
         email: String!
@@ -71,7 +80,18 @@ const typeDefs = gql`
 // Resolvers
 const resolvers = {
     Query: {
-        hello: () => 'world'
+        hello: () => 'world',
+        me: () => users.find(user => user.id === 1),
+        users: () => users,
+        user: (parent, args) => {
+            const { name } = args
+            return users.find(user => user.name === name)
+        },
+        posts: () => posts,
+        post: (parent, args) => {
+            const { id } = args
+            return posts.find(post => post.id === Number(id))
+        }
     },
     User: {
         friends: (parent) => {
