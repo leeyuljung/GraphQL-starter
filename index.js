@@ -1,4 +1,11 @@
 const { ApolloServer, gql } = require('apollo-server');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+// 定義加密所需次數
+const SALT_ROUNDS = 2
+// 定義 jwt 的 secret
+const SECRET = 'this_is_a_secret'
 
 // Mock Data
 const users = [
@@ -91,6 +98,7 @@ const typeDefs = gql`
         addFriend(userId: ID!): User
         addPost(input: AddPostInput!): Post
         likePost(postId: ID!): Post
+        signUp(name: String, email: String!, password: String!): User
     }
 `;
 
@@ -192,6 +200,26 @@ const resolvers = {
                 return updatePost
             }
             return post
+        },
+        signUp: async (parent, args) => {
+            const { name, email, password } = args
+            // 檢查是否有重複註冊的 Email，只要有其中一個重複了，便會回傳 true，然後拋出錯誤
+            const isUserEmailDuplicate = users.some(user => user.email === email)
+            if(isUserEmailDuplicate) throw new Error('This user email has already been used.')
+
+            // 將密碼加密
+            const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+            // 建立新 User Data，並存入加密後的密碼
+            const newUser = {
+                id: users[users.length - 1].id + 1,
+                name,
+                email,
+                password: hashedPassword
+            }
+            // 更新 users 名單，加入新註冊的 user
+            users[users.length] = newUser
+
+            return newUser
         }
     }
 }
