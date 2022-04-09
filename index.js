@@ -99,6 +99,11 @@ const typeDefs = gql`
         addPost(input: AddPostInput!): Post
         likePost(postId: ID!): Post
         signUp(name: String, email: String!, password: String!): User
+        login(email: String!, password: String!): Token
+    }
+
+    type Token {
+        token: String!
     }
 `;
 
