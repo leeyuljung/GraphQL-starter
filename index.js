@@ -225,6 +225,21 @@ const resolvers = {
             users[users.length] = newUser
 
             return newUser
+        },
+        login: async (parent, args) => {
+            const { email, password } = args
+            // 從 users 中找到符合 email 的 user，若無則拋出錯誤
+            const user = users.find(user => user.email === email)
+            if (!user) throw new Error('Email account not exists')
+
+            // 將傳進來的 password 和存在資料中的密碼做比對，若密碼不符則拋出錯誤
+            const passwordIsValid = await bcrypt.compare(password, user.password)
+            if(!passwordIsValid) throw new Error('Wrong password')
+
+            // 建立 Token
+            const createToken = ({ id, email, name }) => jwt.sign({id, email, name}, SECRET, { expiresIn: '1d' }) 
+            // 登入成功則回傳 Token
+            return { token: await createToken(user) }
         }
     }
 }
