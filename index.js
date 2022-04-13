@@ -13,6 +13,16 @@ const isAuthenticated = resolverFunc => (parent, args, context) => {
     return resolverFunc.apply(null, [parent, args, context])
 }
 
+// 檢查是否為貼文作者本人，若不是的話，不能刪除貼文
+const isPostAuthor = resolverFunc => (parent, args, context) => {
+    const { postId } = args
+    const { me } = context
+    // 找出貼文作者並比對
+    const isAuthor = posts.find(post => post.id === Number(postId)).authorId === me.id
+    if(!isAuthor) throw new ForbiddenError('Only author can delete this post')
+    return resolverFunc.applyFunc(parent, args, context)
+}
+
 // Mock Data
 const users = [
     {
@@ -106,6 +116,7 @@ const typeDefs = gql`
         likePost(postId: ID!): Post
         signUp(name: String, email: String!, password: String!): User
         login(email: String!, password: String!): Token
+        deletePost(postId: ID!): Post
     }
 
     type Token {
@@ -248,7 +259,10 @@ const resolvers = {
             const createToken = ({ id, email, name }) => jwt.sign({id, email, name}, SECRET, { expiresIn: '1d' }) 
             // 登入成功則回傳 Token
             return { token: await createToken(user) }
-        }
+        },
+        deletePost: isAuthenticated(
+            isPostAuthor((parent, { postId }, { me }) => posts.splice(posts.findIndex(post => post.id === postId), 1)[0])
+        )
     }
 }
 
