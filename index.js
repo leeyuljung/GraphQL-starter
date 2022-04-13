@@ -1,11 +1,12 @@
 const { ApolloServer, gql, ForbiddenError } = require('apollo-server');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 // 定義加密所需次數
-const SALT_ROUNDS = 2
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS)
 // 定義 jwt 的 secret
-const SECRET = 'this_is_a_secret'
+const SECRET = process.env.SECRET
 
 // 檢查是否有身分認證
 const isAuthenticated = resolverFunc => (parent, args, context) => {
@@ -225,14 +226,14 @@ const resolvers = {
             }
             return post
         }),
-        signUp: async (parent, args) => {
+        signUp: async (parent, args, { saltRounds }) => {
             const { name, email, password } = args
             // 檢查是否有重複註冊的 Email，只要有其中一個重複了，便會回傳 true，然後拋出錯誤
             const isUserEmailDuplicate = users.some(user => user.email === email)
             if(isUserEmailDuplicate) throw new Error('This user email has already been used.')
 
             // 將密碼加密
-            const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+            const hashedPassword = await bcrypt.hash(password, saltRounds)
             // 建立新 User Data，並存入加密後的密碼
             const newUser = {
                 id: users[users.length - 1].id + 1,
@@ -245,7 +246,7 @@ const resolvers = {
 
             return newUser
         },
-        login: async (parent, args) => {
+        login: async (parent, args, { secret }) => {
             const { email, password } = args
             // 從 users 中找到符合 email 的 user，若無則拋出錯誤
             const user = users.find(user => user.email === email)
@@ -256,9 +257,9 @@ const resolvers = {
             if(!passwordIsValid) throw new Error('Wrong password')
 
             // 建立 Token
-            const createToken = ({ id, email, name }) => jwt.sign({id, email, name}, SECRET, { expiresIn: '1d' }) 
+            const createToken = ({ id, email, name }, secret) => jwt.sign({id, email, name}, secret, { expiresIn: '1d' }) 
             // 登入成功則回傳 Token
-            return { token: await createToken(user) }
+            return { token: await createToken(user, secret) }
         },
         deletePost: isAuthenticated(
             isPostAuthor((parent, { postId }, { me }) => posts.splice(posts.findIndex(post => post.id === postId), 1)[0])
@@ -271,6 +272,7 @@ const server = new ApolloServer({
     typeDefs,
     resolvers,
     context: async ({req}) => {
+        const context = { secret: SECRET, saltRounds: SALT_ROUNDS }
         const token = req.headers['x-token']
         if(token) {
             try {
@@ -280,7 +282,7 @@ const server = new ApolloServer({
                 throw new Error('Your session expired. Sign in again.')
             }
         }
-        return {}
+        return context
     }
 })
 
