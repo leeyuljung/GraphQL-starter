@@ -1,4 +1,4 @@
-const { ApolloServer, gql } = require('apollo-server');
+const { ApolloServer, gql, ForbiddenError } = require('apollo-server');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -6,6 +6,12 @@ const jwt = require('jsonwebtoken');
 const SALT_ROUNDS = 2
 // 定義 jwt 的 secret
 const SECRET = 'this_is_a_secret'
+
+// 檢查是否有身分認證
+const isAuthenticated = resolverFunc => (parent, args, context) => {
+    if(!context.me) throw new ForbiddenError('Not logged in.')
+    return resolverFunc.apply(null, [parent, args, context])
+}
 
 // Mock Data
 const users = [
@@ -111,10 +117,9 @@ const typeDefs = gql`
 const resolvers = {
     Query: {
         hello: () => 'world',
-        me: (parent, args, { me }) => {
-            if(!me) throw new Error('Please log in first')
+        me: isAuthenticated((parent, args, { me }) => {
             return users.find(user => user.id === me.id)
-        },
+        }),
         users: () => users,
         user: (parent, args) => {
             const { name } = args
@@ -147,8 +152,7 @@ const resolvers = {
         }
     },
     Mutation: {
-        updateMyInfo: (parent, args, { me }) => {
-            if(!me) throw new Error('Please log in first')
+        updateMyInfo: isAuthenticated((parent, args, { me }) => {
             const { input } = args
             const { name, age } = input
             // 過濾空值
@@ -161,9 +165,8 @@ const resolvers = {
             const newMyInfo = Object.assign(myInfo, data)
             // 最後回傳更新後的資料
             return newMyInfo
-        },
-        addFriend: (parent, args, { me: { id: meId } }) => {
-            if(!me) throw new Error('Please log in first')
+        }),
+        addFriend: isAuthenticated((parent, args, { me: { id: meId } }) => {
             const { userId } = args
             const me = users.find(user => user.id === meId)
             // 若我的朋友名單中已經包含該 userId，則拋出錯誤
@@ -181,9 +184,8 @@ const resolvers = {
             Object.assign(friend, {friendIds: friend.friendIds.concat(meId)})
 
             return newMe
-        },
-        addPost: (parent, args, { me }) => {
-            if(!me) throw new Error('Please log in first')
+        }),
+        addPost: isAuthenticated((parent, args, { me }) => {
             const { input } = args
             const { title, content } = input
             const newPost = {
@@ -197,9 +199,8 @@ const resolvers = {
             // 將新貼文加入 posts
             posts[posts.length] = newPost
             return newPost
-        },
-        likePost: (parent, args, { me }) => {
-            if(!me) throw new Error('Please log in first')
+        }),
+        likePost: isAuthenticated((parent, args, { me }) => {
             const { postId } = args
             // 取得該 postId 的貼文
             const post = posts.find(post => post.id === Number(postId))
@@ -212,7 +213,7 @@ const resolvers = {
                 return updatePost
             }
             return post
-        },
+        }),
         signUp: async (parent, args) => {
             const { name, email, password } = args
             // 檢查是否有重複註冊的 Email，只要有其中一個重複了，便會回傳 true，然後拋出錯誤
