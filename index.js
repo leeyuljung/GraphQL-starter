@@ -111,7 +111,10 @@ const typeDefs = gql`
 const resolvers = {
     Query: {
         hello: () => 'world',
-        me: () => users.find(user => user.id === 1),
+        me: (parent, args, { me }) => {
+            if(!me) throw new Error('Please log in first')
+            return users.find(user => user.id === me.id)
+        },
         users: () => users,
         user: (parent, args) => {
             const { name } = args
@@ -144,7 +147,8 @@ const resolvers = {
         }
     },
     Mutation: {
-        updateMyInfo: (parent, args) => {
+        updateMyInfo: (parent, args, { me }) => {
+            if(!me) throw new Error('Please log in first')
             const { input } = args
             const { name, age } = input
             // 過濾空值
@@ -152,37 +156,39 @@ const resolvers = {
                                .filter(key => input[key] !== null && input[key] !== undefined)
                                .reduce((acc, key) => ({...acc, [key]: input[key]}), {})
             // 取得我的資料
-            const myInfo = users.find(user => user.id === 1)
+            const myInfo = users.find(user => user.id === me.id)
             // 複製我原本的資料，並更新成新的 data
             const newMyInfo = Object.assign(myInfo, data)
             // 最後回傳更新後的資料
             return newMyInfo
         },
-        addFriend: (parent, args) => {
+        addFriend: (parent, args, { me: { id: meId } }) => {
+            if(!me) throw new Error('Please log in first')
             const { userId } = args
-            const me = users.find(user => user.id === 1)
+            const me = users.find(user => user.id === meId)
             // 若我的朋友名單中已經包含該 userId，則拋出錯誤
             if(me.friendIds.includes(userId)) throw new Error(`User ${userId} has already been my friend.`)
 
             // 取得該 userId 的資料
             const friend = users.find(user => user.id === Number(userId))
             // 取得我的資料
-            const myInfo = users.find(user => user.id === 1)
+            const myInfo = users.find(user => user.id === meId)
             // 我的新朋友名單
             const newMyFriendIds = {friendIds: me.friendIds.concat(userId)}
             // 更新我的資料
             const newMe = Object.assign(myInfo, newMyFriendIds)
             // 更新朋友的新朋友名單(加上我)
-            Object.assign(friend, {friendIds: friend.friendIds.concat(1)})
+            Object.assign(friend, {friendIds: friend.friendIds.concat(meId)})
 
             return newMe
         },
-        addPost: (parent, args) => {
+        addPost: (parent, args, { me }) => {
+            if(!me) throw new Error('Please log in first')
             const { input } = args
             const { title, content } = input
             const newPost = {
                 id: posts[posts.length - 1].id + 1,
-                authorId: 1,
+                authorId: me.id,
                 title,
                 content,
                 likeGiverIds: [],
@@ -192,7 +198,8 @@ const resolvers = {
             posts[posts.length] = newPost
             return newPost
         },
-        likePost: (parent, args) => {
+        likePost: (parent, args, { me }) => {
+            if(!me) throw new Error('Please log in first')
             const { postId } = args
             // 取得該 postId 的貼文
             const post = posts.find(post => post.id === Number(postId))
@@ -200,8 +207,8 @@ const resolvers = {
             if(!post) throw new Error(`Post ${postId} Not Exists`)
 
             // 如果沒按過喜歡，就將我的 userId 加入 likeGiverIds 陣列中
-            if(!post.likeGiverIds.includes(1)){
-                const updatePost = Object.assign(post, {likeGiverIds: post.likeGiverIds.concat(1)})
+            if(!post.likeGiverIds.includes(me.id)){
+                const updatePost = Object.assign(post, {likeGiverIds: post.likeGiverIds.concat(me.id)})
                 return updatePost
             }
             return post
@@ -247,7 +254,19 @@ const resolvers = {
 // 初始化 Web Server
 const server = new ApolloServer({
     typeDefs,
-    resolvers
+    resolvers,
+    context: async ({req}) => {
+        const token = req.headers['x-token']
+        if(token) {
+            try {
+                const me = await jwt.verify(token, SECRET)
+                return { me }
+            } catch (e){
+                throw new Error('Your session expired. Sign in again.')
+            }
+        }
+        return {}
+    }
 })
 
 // 啟動 Server
